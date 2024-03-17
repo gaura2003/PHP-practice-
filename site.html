@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drag and Drop Website UI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        
+        .container {
+            width: 80%;
+            margin: 50px auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .toolbar {
+            width: 100px;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            position: absolute;
+            left: 20px;
+            top: 50px;
+        }
+
+        .toolbar-item {
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+        
+        .dropzone {
+            width: 600px;
+            height: 400px;
+            border: 2px dashed #ccc;
+            background-color: #fff;
+            margin-top: 20px;
+            padding: 20px;
+            overflow: auto;
+            position: relative;
+           
+        }
+
+        .placeholder {
+            display: none;
+            width: 100px;
+            height: 100px;
+            background-color: #007bff;
+            color: #fff;
+            text-align: center;
+            line-height: 100px;
+            margin-bottom: 10px;
+        }
+
+        .placeholder img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .context-menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .context-menu-item {
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        .context-menu-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .draggable {
+            transition: transform 0.3s ease;
+        }
+
+        .drag-enter {
+            transform: scale(1.1);
+        }
+
+        .refresh-button {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .refresh-button:hover {
+            background-color: #0056b3;
+        }
+
+        .code-output {
+            width: 100%;
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+        }
+
+        .properties-list {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: #f9f9f9;
+            position: absolute;
+            right: 20px;
+            top: 50px;
+        }
+
+        .property-item {
+            margin-bottom: 5px;
+        }
+
+        .property-label {
+            display: inline-block;
+            width: 100px;
+        }
+
+        .property-input {
+            width: 150px;
+            padding: 3px;
+        }
+
+        .copy-button {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .copy-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button class="refresh-button" id="refresh-button">Refresh</button>
+        <div class="toolbar" id="toolbar">
+            <div class="toolbar-item" data-type="div">Div</div>
+            <div class="toolbar-item" data-type="text">Text</div>
+            <div class="toolbar-item" data-type="image">Image</div>
+            <div class="toolbar-item" data-type="anchor">Anchor</div>
+            <div class="toolbar-item" data-type="horizontal">Horizontal Item</div>
+            <div class="toolbar-item" data-type="vertical">Vertical Item</div>
+            <div class="toolbar-item" data-type="h1">H1</div>
+            <div class="toolbar-item" data-type="h2">H2</div>
+            <div class="toolbar-item" data-type="h3">H3</div>
+            <div class="toolbar-item" data-type="h4">H4</div>
+            <div class="toolbar-item" data-type="h5">H5</div>
+            <div class="toolbar-item" data-type="h6">H6</div>
+        </div>
+        <div class="dropzone" id="dropzone"></div>
+        <div class="context-menu" id="context-menu">
+            <div class="context-menu-item" data-property="width">Set Width</div>
+            <div class="context-menu-item" data-property="padding">Set Padding</div>
+            <div class="context-menu-item" data-property="height">Set Height</div>
+            <div class="context-menu-item" data-property="color">Set Color</div>
+            <div class="context-menu-item" data-property="background-color">Set Background Color</div>
+            <div class="context-menu-item" data-property="radius">Set Border Radius</div>
+            <div class="context-menu-item" data-property="margin">Set Margin</div>
+            <div class="context-menu-item" data-property="text-align">Set Text Align</div>
+            <div class="context-menu-item" data-property="text">Set Text</div>
+        </div>
+        <div class="code-output" id="code-output"></div>
+        <div class="properties-list" id="properties-list"></div>
+        <button class="copy-button" id="copy-button">Copy Code</button>
+    </div>
+
+    <script>
+        const toolbar = document.getElementById('toolbar');
+        const dropzone = document.getElementById('dropzone');
+        const contextMenu = document.getElementById('context-menu');
+        const refreshButton = document.getElementById('refresh-button');
+        const codeOutput = document.getElementById('code-output');
+        const propertiesList = document.getElementById('properties-list');
+        const copyButton = document.getElementById('copy-button');
+        let selectedItem = null;
+
+        // Add event listener to toolbar items
+        toolbar.addEventListener('click', function(event) {
+            const type = event.target.dataset.type;
+           
+            if (type) {
+                const draggable = createDraggable(type);
+                dropzone.appendChild(draggable);
+                updateCodeOutput();
+                updatePropertiesList(draggable);
+            }
+        });
+
+        // Create draggable elements
+        function createDraggable(type) {
+            const draggable = document.createElement('div');
+            draggable.classList.add('draggable');
+            draggable.setAttribute('draggable', 'true');
+            switch (type) {
+                case 'div':
+                    draggable.textContent = 'Draggable Div';
+                    break;
+                case 'text':
+                    draggable.textContent = 'Text';
+                    break;
+                case 'image':
+                    const image = document.createElement('img');
+                    image.src = 'https://via.placeholder.com/100';
+                    draggable.appendChild(image);
+                    break;
+                case 'anchor':
+                    draggable.textContent = 'Anchor';
+                    draggable.innerHTML = '<a href="#">Link</a>';
+                    break;
+                case 'horizontal':
+                    draggable.textContent = 'Horizontal Item';
+                    draggable.innerHTML = '<div style="display: flex;">Horizontal Item</div>';
+                    break;
+                case 'vertical':
+                    draggable.textContent = 'Vertical Item';
+                    draggable.innerHTML = '<div style="display: flex; flex-direction: column;">Vertical Item</div>';
+                    break;
+                case 'h1':
+                    draggable.textContent = 'H1';
+                    draggable.innerHTML = '<h1>H1 Heading</h1>';
+                    break;
+                case 'h2':
+                    draggable.textContent = 'H2';
+                    draggable.innerHTML = '<h2>H2 Heading</h2>';
+                    break;
+                case 'h3':
+                    draggable.textContent = 'H3';
+                    draggable.innerHTML = '<h3>H3 Heading</h3>';
+                    break;
+                case 'h4':
+                    draggable.textContent = 'H4';
+                    draggable.innerHTML = '<h4>H4 Heading</h4>';
+                    break;
+                case 'h5':
+                    draggable.textContent = 'H5';
+                    draggable.innerHTML = '<h5>H5 Heading</h5>';
+                    break;
+                case 'h6':
+                    draggable.textContent = 'H6';
+                    draggable.innerHTML = '<h6>H6 Heading</h6>';
+                    break;
+                default:
+                    break;
+            }
+            draggable.addEventListener('contextmenu', function(event) {
+                event.preventDefault();
+                showContextMenu(event.clientX, event.clientY);
+                selectedItem = draggable;
+            });
+            return draggable;
+        }
+
+        // Prevent default behavior for drag events
+        document.addEventListener('dragover', function(event) {
+            event.preventDefault();
+        });
+
+        dropzone.addEventListener('dragenter', function(event) {
+            event.preventDefault();
+            const type = event.dataTransfer.getData('text/plain');
+            const placeholder = createPlaceholder(type);
+            dropzone.appendChild(placeholder);
+            event.target.classList.add('drag-enter');
+        });
+
+        dropzone.addEventListener('dragleave', function(event) {
+            event.preventDefault();
+            const placeholders = document.querySelectorAll('.placeholder');
+            placeholders.forEach(function(placeholder) {
+                placeholder.remove();
+            });
+            event.target.classList.remove('drag-enter');
+        });
+
+        dropzone.addEventListener('drop', function(event) {
+            event.preventDefault();
+            const type = event.dataTransfer.getData('text/plain');
+            const placeholder = document.querySelector('.placeholder');
+            if (placeholder) {
+                const droppedItem = createDraggable(type);
+                dropzone.replaceChild(droppedItem, placeholder);
+                event.target.classList.remove('drag-enter');
+                updateCodeOutput();
+                updatePropertiesList(droppedItem);
+            }
+        });
+
+        function createPlaceholder(type) {
+            const placeholder = document.createElement('div');
+            placeholder.classList.add('placeholder');
+            placeholder.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+            return placeholder;
+        }
+
+        function showContextMenu(x, y) {
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = x + 'px';
+            contextMenu.style.top = y + 'px';
+        }
+
+        document.addEventListener('click', function(event) {
+            if (!contextMenu.contains(event.target)) {
+                contextMenu.style.display = 'none';
+                selectedItem = null;
+            }
+        });
+
+        const contextMenuItems = document.querySelectorAll('.context-menu-item');
+        contextMenuItems.forEach(function(item) {
+            item.addEventListener('click', function() {
+                const property = item.dataset.property;
+                if (property === 'text') {
+                    const value = document.getElementById('text-value').value;
+                    if (value !== null && selectedItem) {
+                        selectedItem.textContent = value;
+                    }
+                } else if (property === 'text-align') {
+                    const value = document.getElementById('text-align-value').value;
+                    if (selectedItem) {
+                        selectedItem.style.textAlign = value;
+                    }
+                } else {
+                    let value = prompt(`Enter value for ${property}:`);
+                    if (value !== null) {
+                        if (property === 'height') {
+                            value += 'px';
+                        }
+                        if (selectedItem) {
+                            selectedItem.style[property] = value;
+                        }
+                    }
+                }
+                updateCodeOutput();
+            });
+        });
+
+        // Refresh button functionality
+        refreshButton.addEventListener('click', function() {
+            dropzone.innerHTML = '';
+            codeOutput.textContent = '';
+            propertiesList.innerHTML = '';
+        });
+
+        // Copy button functionality
+        copyButton.addEventListener('click', function() {
+            copyCodeToClipboard();
+        });
+
+        // Update code output based on the current state of drop zone
+        function updateCodeOutput() {
+            codeOutput.textContent = dropzone.innerHTML;
+        }
+
+        // Update properties list based on the selected item
+        function updatePropertiesList(item) {
+        propertiesList.innerHTML = ''; // Clear previous properties
+        if (!item) return; // Return if no item selected
+        const properties = [
+            'margin',
+            'padding',
+            'text-align',
+            'background-color',
+            'background-image', // Add background image property
+            'color',
+            'border-radius',
+            'font-size',
+            'font-weight' // Add font weight property
+        ];
+        properties.forEach(property => {
+            const propertyItem = document.createElement('div');
+            propertyItem.classList.add('property-item');
+            const label = document.createElement('label');
+            label.classList.add('property-label');
+            label.textContent = property + ':';
+            const input = document.createElement('input');
+            input.classList.add('property-input');
+            input.setAttribute('type', 'text');
+            input.value = window.getComputedStyle(item).getPropertyValue(property);
+            input.addEventListener('input', function() {
+                item.style[property] = input.value;
+                updateCodeOutput();
+            });
+            propertyItem.appendChild(label);
+            propertyItem.appendChild(input);
+            propertiesList.appendChild(propertyItem);
+        });
+    }
+
+        // Copy generated code to clipboard
+        function copyCodeToClipboard() {
+            const el = document.createElement('textarea');
+            el.value = codeOutput.textContent;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            alert('Code copied to clipboard!');
+        }
+    </script>
+</body>
+</html>
